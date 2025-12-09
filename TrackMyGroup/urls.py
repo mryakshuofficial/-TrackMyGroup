@@ -32,5 +32,6 @@ urlpatterns = [
     path('join-group/', views.join_group, name='join-group'),
     path('group-map/<int:group_id>/', views.group_map, name='group-map'),
     path('group/<int:group_id>/locations/', views.group_locations_api, name="group_locations_api"),
-
+    path('group/<int:group_id>/update-location/', views.update_location, name="update_location"),
+    
 ]

@@ -25,39 +25,38 @@
         maxZoom: 19,
     }).addTo(map);
 
-    var markers = [];
+    var markers = {}; // store markers by student id
 
-    var greenIcon = new L.Icon({
-        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png'
-    });
-
-    var orangeIcon = new L.Icon({
-        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png'
-    });
-
-    var redIcon = new L.Icon({
-        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'
-    });
+    var icons = {
+        green: new L.Icon({iconUrl:'https://maps.google.com/mapfiles/ms/icons/green-dot.png'}),
+        orange: new L.Icon({iconUrl:'https://maps.google.com/mapfiles/ms/icons/orange-dot.png'}),
+        red: new L.Icon({iconUrl:'https://maps.google.com/mapfiles/ms/icons/red-dot.png'})
+    };
 
     function loadMarkers() {
-
         fetch("/group/{{ group.id }}/locations/")
-            .then(response => response.json())
+            .then(res => res.json())
             .then(data => {
-                markers.forEach(m => map.removeLayer(m));
-                markers = [];
 
                 data.locations.forEach(loc => {
+
                     var battery = parseInt(loc.battery);
-                    var iconChoice = greenIcon;
+                    var iconChoice = icons.green;
+                    if (battery < 30) iconChoice = icons.red;
+                    else if (battery < 60) iconChoice = icons.orange;
 
-                    if (battery < 30) iconChoice = redIcon;
-                    else if (battery < 60) iconChoice = orangeIcon;
+                    if (markers[loc.id]) {
+                        // Update existing marker position and popup
+                        markers[loc.id].setLatLng([loc.lat, loc.lng]);
+                        markers[loc.id].setIcon(iconChoice);
+                        markers[loc.id].bindPopup("<b>"+loc.name+"</b><br>Battery: "+loc.battery+"%<br>Updated: "+loc.updated);
+                    } else {
+                        // Create new marker if not exists
+                        markers[loc.id] = L.marker([loc.lat, loc.lng], {icon: iconChoice})
+                            .addTo(map)
+                            .bindPopup("<b>"+loc.name+"</b><br>Battery: "+loc.battery+"%<br>Updated: "+loc.updated);
+                    }
 
-                    var marker = L.marker([loc.lat, loc.lng], {icon: iconChoice}).addTo(map)
-                        .bindPopup("<b>"+loc.name+"</b><br>Battery: "+loc.battery+"%<br>Updated: "+loc.updated);
-
-                    markers.push(marker);
                 });
             });
     }
@@ -66,5 +65,32 @@
     setInterval(loadMarkers, 10000);
 </script>
 
+<script>
+    function sendLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                navigator.getBattery().then(battery => {
+                    fetch(`/group/{{ group.id }}/update-location/`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": "{{ csrf_token }}"
+                        },
+                        body: JSON.stringify({
+                            latitude: pos.coords.latitude,
+                            longitude: pos.coords.longitude,
+                            battery: Math.round(battery.level * 100)
+                        })
+                    });
+                });
+            });
+        }
+    }
+
+    setInterval(sendLocation, 10000);
+    sendLocation();
+</script>
+
 </body>
 </html>
+    

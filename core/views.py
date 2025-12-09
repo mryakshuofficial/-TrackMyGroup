@@ -4,6 +4,8 @@ from .models import Users, Group, GroupMember, StudentLocation
 from Notice.models import Notice
 from django.http import JsonResponse
 from django.utils.timezone import localtime
+from django.views.decorators.csrf import csrf_exempt
+import json
 
 # Create your views here.
 def home(request):
@@ -131,16 +133,50 @@ def group_map(request, group_id):
 
 def group_locations_api(request, group_id):
     group = Group.objects.get(id=group_id)
-    members = StudentLocation.objects.filter(group=group)
+
+    # get last location per user
+    user_ids = StudentLocation.objects.filter(group=group).values_list("user", flat=True).distinct()
     locations = []
 
-    for m in members:
-        locations.append({
-            "name": m.user.name,
-            "lat": float(m.latitude),
-            "lng": float(m.longitude),
-            "battery": m.battery_level,
-            "updated": localtime(m.last_updated).strftime("%d-%m-%Y %I:%M %p")
-        })
+    for uid in user_ids:
+        last = StudentLocation.objects.filter(user_id=uid, group=group).last()
+        if last:
+                locations.append({
+                "id": last.user.id,
+                "name": last.user.name,
+                "lat": float(last.latitude),
+                "lng": float(last.longitude),
+                "battery": last.battery_level,
+                "updated": localtime(last.last_updated).strftime("%d-%m-%Y %I:%M %p")
+                })
 
     return JsonResponse({"locations": locations})
+
+
+
+@csrf_exempt
+def update_location(request, group_id):
+    if request.method == "POST":
+        data = json.loads(request.body.decode("utf-8"))
+        user_id = request.session.get("user_id")
+
+        if not user_id:
+            return JsonResponse({"status": "error", "message": "Not logged in"})
+
+        user = Users.objects.get(id=user_id)
+        group = Group.objects.get(id=group_id)
+
+        StudentLocation.objects.update_or_create(
+            user=user,
+            group=group,
+            defaults={
+                "latitude": data["latitude"],
+                "longitude": data["longitude"],
+                "battery_level": data["battery"],
+                "last_updated": timezone.now()
+            }
+        )
+
+        return JsonResponse({"status": "success"})
+
+    return JsonResponse({"status": "invalid request"})
