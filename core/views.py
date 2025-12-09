@@ -6,6 +6,8 @@ from django.http import JsonResponse
 from django.utils.timezone import localtime
 from django.views.decorators.csrf import csrf_exempt
 import json
+from django.db.models import Q
+
 
 # Create your views here.
 def home(request):
@@ -133,24 +135,31 @@ def group_map(request, group_id):
 
 def group_locations_api(request, group_id):
     group = Group.objects.get(id=group_id)
+    q = request.GET.get("q", "").strip()
 
-    # get last location per user
-    user_ids = StudentLocation.objects.filter(group=group).values_list("user", flat=True).distinct()
+    members = StudentLocation.objects.filter(group=group)
+
+    if q:
+        members = members.filter(
+            Q(user__name__icontains=q) |
+            Q(user__email__icontains=q) |
+            Q(user__mobile__icontains=q)
+        )
+
     locations = []
 
-    for uid in user_ids:
-        last = StudentLocation.objects.filter(user_id=uid, group=group).last()
-        if last:
-                locations.append({
-                "id": last.user.id,
-                "name": last.user.name,
-                "lat": float(last.latitude),
-                "lng": float(last.longitude),
-                "battery": last.battery_level,
-                "updated": localtime(last.last_updated).strftime("%d-%m-%Y %I:%M %p")
-                })
+    for m in members:
+        locations.append({
+            "id": m.id,
+            "name": m.user.name,
+            "lat": float(m.latitude),
+            "lng": float(m.longitude),
+            "battery": m.battery_level,
+            "updated": localtime(m.last_updated).strftime("%d-%m-%Y %I:%M %p")
+        })
 
     return JsonResponse({"locations": locations})
+
 
 
 

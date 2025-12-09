@@ -19,6 +19,10 @@
 <div id="map" style="height:500px; width:100%"></div>
 
 <script>
+    document.querySelector("form").addEventListener("submit", function(e){
+    e.preventDefault();
+    loadMarkers();
+    });
     var map = L.map('map').setView([21.1702, 72.8311], 10);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -33,8 +37,9 @@
         red: new L.Icon({iconUrl:'https://maps.google.com/mapfiles/ms/icons/red-dot.png'})
     };
 
-    function loadMarkers() {
-        fetch("/group/{{ group.id }}/locations/")
+    {% comment %} function loadMarkers() {
+        var query = document.querySelector("input[name='q']").value;
+        fetch(`/group/{{ group.id }}/locations/?q=${query}`)
             .then(res => res.json())
             .then(data => {
 
@@ -59,7 +64,46 @@
 
                 });
             });
-    }
+    } {% endcomment %}
+     function loadMarkers() {
+    var query = document.querySelector("input[name='q']").value;
+    fetch(`/group/{{ group.id }}/locations/?q=${query}`)
+        .then(res => res.json())
+        .then(data => {
+
+            // Remove markers that are no longer in data
+            Object.keys(markers).forEach(id => {
+                if (!data.locations.some(loc => loc.id == id)) {
+                    map.removeLayer(markers[id]);
+                    delete markers[id];
+                }
+            });
+
+            data.locations.forEach((loc, index) => {
+                var battery = parseInt(loc.battery);
+                var iconChoice = icons.green;
+                if (battery < 30) iconChoice = icons.red;
+                else if (battery < 60) iconChoice = icons.orange;
+
+                if (markers[loc.id]) {
+                    markers[loc.id].setLatLng([loc.lat, loc.lng]);
+                    markers[loc.id].setIcon(iconChoice);
+                    markers[loc.id].bindPopup("<b>"+loc.name+"</b><br>Battery: "+loc.battery+"%<br>Updated: "+loc.updated);
+                } else {
+                    markers[loc.id] = L.marker([loc.lat, loc.lng], {icon: iconChoice})
+                        .addTo(map)
+                        .bindPopup("<b>"+loc.name+"</b><br>Battery: "+loc.battery+"%<br>Updated: "+loc.updated);
+                }
+
+                // Zoom to first search result
+                if (query && index === 0) {
+                    map.setView([loc.lat, loc.lng], 15); // zoom level 15
+                    markers[loc.id].openPopup(); // optional: open popup
+                }
+            });
+
+        });
+}
 
     loadMarkers();
     setInterval(loadMarkers, 10000);
@@ -93,4 +137,3 @@
 
 </body>
 </html>
-    
