@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Notice List</title>
+</head>
+<body>
+    <h2>All Notices</h2>
+
+    {% for n in notices %}
+        <div style="border:1px solid #ccc; padding:10px; margin:10px;">
+            <h3>{{ n.title }}</h3><br>
+            <p>{{ n.message }}</p><br>
+            <small>{{ n.created_at }}</small><br>
+        </div>
+    {% empty %}
+        <p>No notices available</p>
+    {% endfor %}
+</body>
+</html>

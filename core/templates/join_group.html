@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Group</title>
+</head>
+<body>
+    <h2>Join Group</h2>
+    
+    <form method="POST">
+        {% csrf_token %}
+        <label>Select Group:</label><br>
+        <select name="group_id" required>
+            {% for g in groups %}
+                <option value="{{ g.id }}">{{ g.name }}</option>
+            {% endfor %}
+        </select><br><br>
+    
+        <label>
+            <input type="checkbox" name="location_permission"> Allow location access
+        </label><br><br>
+    
+        <button type="submit">Join Group</button>
+    </form>
+    
+    <br>
+    <a href="/dashboard/">Back to Dashboard</a>
+    
+</body>
+</html>

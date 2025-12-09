@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+</head>
+<body>
+    <h2>Welcome, {{ name }}</h2>
+
+    <h3>Notices</h3>
+    <marquee behavior="scroll" direction="left">
+        {% for n in notices %}
+            <strong>{{ n.title }}:</strong> {{ n.message }} &nbsp;&nbsp;&nbsp;
+        {% empty %}
+            No active notices
+        {% endfor %}
+    </marquee>
+
+    <br><br>
+    <a href="/create-group/">Create Group</a> | 
+    <a href="/join-group/">Join Group</a> | 
+    <a href="/logout/">Logout</a>
+</body>
+</html>

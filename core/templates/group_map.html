@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+
+<h2>Group: {{ group.name }} Map</h2>
+
+<form method="get">
+    <input type="text" name="q" placeholder="Search by name/email/mobile">
+    <button type="submit">Search</button>
+</form>
+
+<div id="map" style="height:500px; width:100%"></div>
+
+<script>
+    var map = L.map('map').setView([21.1702, 72.8311], 10);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+    }).addTo(map);
+
+    var markers = [];
+
+    var greenIcon = new L.Icon({
+        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png'
+    });
+
+    var orangeIcon = new L.Icon({
+        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png'
+    });
+
+    var redIcon = new L.Icon({
+        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'
+    });
+
+    function loadMarkers() {
+
+        fetch("/group/{{ group.id }}/locations/")
+            .then(response => response.json())
+            .then(data => {
+                markers.forEach(m => map.removeLayer(m));
+                markers = [];
+
+                data.locations.forEach(loc => {
+                    var battery = parseInt(loc.battery);
+                    var iconChoice = greenIcon;
+
+                    if (battery < 30) iconChoice = redIcon;
+                    else if (battery < 60) iconChoice = orangeIcon;
+
+                    var marker = L.marker([loc.lat, loc.lng], {icon: iconChoice}).addTo(map)
+                        .bindPopup("<b>"+loc.name+"</b><br>Battery: "+loc.battery+"%<br>Updated: "+loc.updated);
+
+                    markers.push(marker);
+                });
+            });
+    }
+
+    loadMarkers();
+    setInterval(loadMarkers, 10000);
+</script>
+
+</body>
+</html>
