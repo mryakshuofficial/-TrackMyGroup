@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-n@1ieftqtbpi)de4n^mh!lmuy)spe(0=qamq8t35urw*2043)t
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*', '127.0.0.1','0.0.0.0','frances-nosographic-unshabbily.ngrok-free.dev']
 
 
 # Application definition
@@ -117,3 +117,4 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+CSRF_TRUSTED_ORIGINS = ['https://frances-nosographic-unshabbily.ngrok-free.dev']

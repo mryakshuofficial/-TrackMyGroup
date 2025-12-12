@@ -68,23 +68,79 @@ def create_group(request):
         return redirect('/login/')
 
     if request.method == "POST":
-        group_name = request.POST.get('group_name')
+        group_name = request.POST.get('group_name') or request.POST.get('name')
         host_id = request.session.get('user_id')
         host_user = Users.objects.get(id=host_id)
 
-        Group.objects.create(name=group_name, host=host_user)
-
-        return HttpResponse(f"Group '{group_name}' created successfully!")
+        # Create group and get the actual group object
+        group = Group.objects.create(name=group_name, host=host_user)
+        group_id = group.id  # Get the correct ID
+        
+        # Auto-join host to their own group
+        GroupMember.objects.get_or_create(
+            group=group,
+            user=host_user,
+            defaults={'location_permission': True}
+        )
+        
+        # Save group_id in session
+        request.session['group_id'] = group_id
+        
+        # Create initial location entry
+        from django.utils import timezone
+        StudentLocation.objects.update_or_create(
+            user=host_user,
+            group=group,
+            defaults={
+                "latitude": 0,
+                "longitude": 0,
+                "battery_level": 0,
+                "last_updated": timezone.now()
+            }
+        )
+        
+        return redirect(f'/group-map/{group_id}/')  # Redirect to map directly
 
     return render(request, 'create_group.html')
 
+# def join_group(request):
+#     if 'user_id' not in request.session:
+#         return redirect('/login/')
+
+#     student_id = request.session.get('user_id')
+#     student = Users.objects.get(id=student_id)
+#     groups = Group.objects.all()  # existing groups
+
+#     if request.method == "POST":
+#         group_id = request.POST.get('group_id')
+#         location_permission = request.POST.get('location_permission') == 'on'
+
+#         group = Group.objects.get(id=group_id)
+
+#         # Check if already member
+#         exists = GroupMember.objects.filter(group=group, user=student).first()
+#         if not exists:
+#             GroupMember.objects.create(
+#                 group=group,
+#                 user=student,
+#                 location_permission=location_permission,
+#                 defaults={
+#                     "latitude": 0,
+#                     "longitude": 0,
+#                     "battery_level": 0,
+#                     "last_updated": timezone.now()
+#                     }
+#             )
+#         return HttpResponse(f"You joined group '{group.name}' successfully!")
+
+#     return render(request, 'join_group.html', {'groups': groups})
 def join_group(request):
     if 'user_id' not in request.session:
         return redirect('/login/')
 
     student_id = request.session.get('user_id')
     student = Users.objects.get(id=student_id)
-    groups = Group.objects.all()  # existing groups
+    groups = Group.objects.all()
 
     if request.method == "POST":
         group_id = request.POST.get('group_id')
@@ -100,9 +156,27 @@ def join_group(request):
                 user=student,
                 location_permission=location_permission
             )
-        return HttpResponse(f"You joined group '{group.name}' successfully!")
+
+        # Save group_id in session
+        request.session['group_id'] = group.id
+        
+        # Create initial location entry
+        from django.utils import timezone
+        StudentLocation.objects.update_or_create(
+            user=student,
+            group=group,
+            defaults={
+                "latitude": 0,
+                "longitude": 0,
+                "battery_level": 0,
+                "last_updated": timezone.now()
+            }
+        )
+        
+        return redirect(f'/group-map/{group_id}/')
 
     return render(request, 'join_group.html', {'groups': groups})
+
 
 def group_map(request, group_id):
     if 'user_id' not in request.session:
@@ -162,7 +236,7 @@ def group_locations_api(request, group_id):
 
 
 
-
+from django.utils import timezone
 @csrf_exempt
 def update_location(request, group_id):
     if request.method == "POST":
@@ -189,3 +263,73 @@ def update_location(request, group_id):
         return JsonResponse({"status": "success"})
 
     return JsonResponse({"status": "invalid request"})
+
+# @csrf_exempt
+# def update_location_auto(request):
+#     if request.method == "POST":
+#         if "user_id" not in request.session:
+#             return JsonResponse({"status": "error", "message": "not logged in"})
+
+#         data = json.loads(request.body.decode("utf-8"))
+#         user_id = request.session["user_id"]
+
+#         user = Users.objects.get(id=user_id)
+
+#         # Auto detect student ka group
+#         gm = GroupMember.objects.filter(user=user).last()
+#         if not gm:
+#             return JsonResponse({"status": "error", "message": "no group joined"})
+
+#         group = gm.group
+
+#         StudentLocation.objects.update_or_create(
+#             user=user,
+#             group=group,
+#             defaults={
+#                 "latitude": data["latitude"],
+#                 "longitude": data["longitude"],
+#                 "battery_level": data["battery"],
+#                 "last_updated": timezone.now()
+#             }
+#         )
+#         return JsonResponse({"status": "success"})
+
+#     return JsonResponse({"status": "error"})
+
+
+#  perplexity
+# views.py में update_location_auto में add करें
+@csrf_exempt
+def update_location_auto(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+            print(f"📍 Received location: {data}")  # Debug log
+            
+            if "user_id" not in request.session:
+                return JsonResponse({"status": "error", "message": "not logged in"})
+
+            user_id = request.session["user_id"]
+            user = Users.objects.get(id=user_id)
+
+            gm = GroupMember.objects.filter(user=user).last()
+            if not gm:
+                return JsonResponse({"status": "error", "message": "no group joined"})
+
+            group = gm.group
+
+            StudentLocation.objects.update_or_create(
+                user=user,
+                group=group,
+                defaults={
+                    "latitude": float(data["latitude"]),
+                    "longitude": float(data["longitude"]),
+                    "battery_level": int(data["battery"]),
+                    "last_updated": timezone.now()
+                }
+            )
+            print(f"✅ Saved location for {user.name}: {data['latitude']}, {data['longitude']}")
+            return JsonResponse({"status": "success"})
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            return JsonResponse({"status": "error", "message": str(e)})

@@ -3,18 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ragister Page</title>
+    <title>Register Page</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f3f3;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 350px;
+            margin: 60px auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 0;
+        }
+
+        input {
+            width: 94%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        a {
+            display: block;
+            text-align: center;
+            margin-top: 15px;
+            color: #333;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+
 </head>
 <body>
-    <h2>Register Page</h2>
-    <form method="POST">
-        {% csrf_token %}
-        <input type="text" name="name" placeholder="Enter name" required><br><br>
-        <input type="email" name="email" placeholder="Enter email" required><br><br>
-        <input type="text" name="mobile" placeholder="Enter mobile" required><br><br>
-        <input type="password" name="password" placeholder="Enter password" required><br><br>
-        <button type="submit">Register</button>
-    </form>
+
+    <div class="container">
+        <h2>Register</h2>
+
+        <form method="POST">
+            {% csrf_token %}
+            <input type="text" name="name" placeholder="Enter name" required>
+            <input type="email" name="email" placeholder="Enter email" required>
+            <input type="text" name="mobile" placeholder="Enter mobile" required>
+            <input type="password" name="password" placeholder="Enter password" required>
+            <button type="submit">Register</button>
+        </form>
+
+        <a href="/login">Already have an account? Login</a>
+    </div>
 
 </body>
 </html>

@@ -4,136 +4,279 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Group Map</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-</head>
-<body>
-
-<h2>Group: {{ group.name }} Map</h2>
-
-<form method="get">
-    <input type="text" name="q" placeholder="Search by name/email/mobile">
-    <button type="submit">Search</button>
-</form>
-
-<div id="map" style="height:500px; width:100%"></div>
-
-<script>
-    document.querySelector("form").addEventListener("submit", function(e){
-    e.preventDefault();
-    loadMarkers();
-    });
-    var map = L.map('map').setView([21.1702, 72.8311], 10);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-    }).addTo(map);
-
-    var markers = {}; // store markers by student id
-
-    var icons = {
-        green: new L.Icon({iconUrl:'https://maps.google.com/mapfiles/ms/icons/green-dot.png'}),
-        orange: new L.Icon({iconUrl:'https://maps.google.com/mapfiles/ms/icons/orange-dot.png'}),
-        red: new L.Icon({iconUrl:'https://maps.google.com/mapfiles/ms/icons/red-dot.png'})
-    };
-
-    {% comment %} function loadMarkers() {
-        var query = document.querySelector("input[name='q']").value;
-        fetch(`/group/{{ group.id }}/locations/?q=${query}`)
-            .then(res => res.json())
-            .then(data => {
-
-                data.locations.forEach(loc => {
-
-                    var battery = parseInt(loc.battery);
-                    var iconChoice = icons.green;
-                    if (battery < 30) iconChoice = icons.red;
-                    else if (battery < 60) iconChoice = icons.orange;
-
-                    if (markers[loc.id]) {
-                        // Update existing marker position and popup
-                        markers[loc.id].setLatLng([loc.lat, loc.lng]);
-                        markers[loc.id].setIcon(iconChoice);
-                        markers[loc.id].bindPopup("<b>"+loc.name+"</b><br>Battery: "+loc.battery+"%<br>Updated: "+loc.updated);
-                    } else {
-                        // Create new marker if not exists
-                        markers[loc.id] = L.marker([loc.lat, loc.lng], {icon: iconChoice})
-                            .addTo(map)
-                            .bindPopup("<b>"+loc.name+"</b><br>Battery: "+loc.battery+"%<br>Updated: "+loc.updated);
-                    }
-
-                });
-            });
-    } {% endcomment %}
-     function loadMarkers() {
-    var query = document.querySelector("input[name='q']").value;
-    fetch(`/group/{{ group.id }}/locations/?q=${query}`)
-        .then(res => res.json())
-        .then(data => {
-
-            // Remove markers that are no longer in data
-            Object.keys(markers).forEach(id => {
-                if (!data.locations.some(loc => loc.id == id)) {
-                    map.removeLayer(markers[id]);
-                    delete markers[id];
-                }
-            });
-
-            data.locations.forEach((loc, index) => {
-                var battery = parseInt(loc.battery);
-                var iconChoice = icons.green;
-                if (battery < 30) iconChoice = icons.red;
-                else if (battery < 60) iconChoice = icons.orange;
-
-                if (markers[loc.id]) {
-                    markers[loc.id].setLatLng([loc.lat, loc.lng]);
-                    markers[loc.id].setIcon(iconChoice);
-                    markers[loc.id].bindPopup("<b>"+loc.name+"</b><br>Battery: "+loc.battery+"%<br>Updated: "+loc.updated);
-                } else {
-                    markers[loc.id] = L.marker([loc.lat, loc.lng], {icon: iconChoice})
-                        .addTo(map)
-                        .bindPopup("<b>"+loc.name+"</b><br>Battery: "+loc.battery+"%<br>Updated: "+loc.updated);
-                }
-
-                // Zoom to first search result
-                if (query && index === 0) {
-                    map.setView([loc.lat, loc.lng], 15); // zoom level 15
-                    markers[loc.id].openPopup(); // optional: open popup
-                }
-            });
-
-        });
-}
-
-    loadMarkers();
-    setInterval(loadMarkers, 10000);
-</script>
-
-<script>
-    function sendLocation() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                navigator.getBattery().then(battery => {
-                    fetch(`/group/{{ group.id }}/update-location/`, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-CSRFToken": "{{ csrf_token }}"
-                        },
-                        body: JSON.stringify({
-                            latitude: pos.coords.latitude,
-                            longitude: pos.coords.longitude,
-                            battery: Math.round(battery.level * 100)
-                        })
-                    });
-                });
-            });
-        }
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+    body {
+        margin: 0;
+        padding: 20px;
+        font-family: Arial;
+        background: #f7f8fa;
+        color: #333;
     }
 
-    setInterval(sendLocation, 10000);
-    sendLocation();
-</script>
+    h2 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #222;
+    }
 
+    /* Status box */
+    #status {
+        background: white;
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        margin-bottom: 15px;
+    }
+
+    #request-permission {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    /* Search bar */
+    #search-form {
+        text-align: center;
+        margin-bottom: 15px;
+    }
+
+    #search-input {
+        padding: 8px;
+        width: 70%;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    #search-form button {
+        padding: 8px 15px;
+        background: #2196F3;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    /* Map */
+    #map {
+        height: 500px;
+        width: 100%;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+    }
+</style>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body style="margin:0; padding:20px; font-family: Arial;">
+    
+    <h2 style="margin-bottom:10px;">📍 Group: {{ group.name }} Map</h2>
+    
+    <!-- Permission Status -->
+    <div id="status" style="background:#f0f0f0; padding:10px; margin-bottom:10px; border-radius:5px;">
+        <strong>Location Status: </strong><span id="status-text">Checking...</span>
+        <button id="request-permission" style="float:right; background:#4CAF50; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">Grant Location</button>
+    </div>
+
+    <form id="search-form" style="margin-bottom:15px;">
+        <input type="text" id="search-input" name="q" placeholder="🔍 Search by name/email/mobile" style="padding:8px; width:70%; border:1px solid #ddd; border-radius:3px;">
+        <button type="submit" style="padding:8px 15px; background:#2196F3; color:white; border:none; border-radius:3px; cursor:pointer;">Search</button>
+    </form>
+
+    <div id="map" style="height:500px; width:100%; border:1px solid #ddd; border-radius:5px;"></div>
+
+    <script>
+        // Global variables
+        const map = L.map('map').setView([21.1702, 72.8311], 10);
+        const markers = {};
+        let watchId = null;
+        let isTracking = false;
+
+        // Leaflet setup
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        const icons = {
+            green: new L.Icon({iconUrl:'https://maps.google.com/mapfiles/ms/icons/green-dot.png', iconSize:[32,32]}),
+            orange: new L.Icon({iconUrl:'https://maps.google.com/mapfiles/ms/icons/orange-dot.png', iconSize:[32,32]}),
+            red: new L.Icon({iconUrl:'https://maps.google.com/mapfiles/ms/icons/red-dot.png', iconSize:[32,32]})
+        };
+
+        // Status functions
+        function updateStatus(text, color = '#333') {
+            document.getElementById('status-text').textContent = text;
+            document.getElementById('status-text').style.color = color;
+        }
+
+        function requestLocationPermission() {
+            if (!navigator.geolocation) {
+                updateStatus('❌ Geolocation not supported', '#ff4444');
+                return;
+            }
+
+            // First try getCurrentPosition with proper error handling
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    updateStatus(`✅ Location: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`, '#4CAF50');
+                    sendLocationData(pos.coords.latitude, pos.coords.longitude);
+                    startContinuousTracking();
+                },
+                (error) => {
+                    let msg = '';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            msg = '❌ Location access denied. Please enable location permission';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            msg = '❌ Location info unavailable';
+                            break;
+                        case error.TIMEOUT:
+                            msg = '❌ Location request timeout';
+                            break;
+                        default:
+                            msg = '❌ Location error occurred';
+                    }
+                    updateStatus(msg, '#ff4444');
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                }
+            );
+        }
+
+        // Send location to backend
+        async function sendLocationData(lat, lng) {
+            try {
+                const battery = await getBatteryLevel();
+                const response = await fetch("/update-location-auto/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify({
+                        latitude: lat,
+                        longitude: lng,
+                        battery: Math.round(battery)
+                    })
+                });
+                if (response.ok) {
+                    console.log('✅ Location sent successfully');
+                }
+            } catch (error) {
+                console.error('❌ Send location failed:', error);
+            }
+        }
+
+        // Battery API
+        async function getBatteryLevel() {
+            if ('getBattery' in navigator) {
+                try {
+                    const battery = await navigator.getBattery();
+                    return battery.level * 100;
+                } catch(e) {
+                    return 100;
+                }
+            }
+            return 100;
+        }
+
+        // Continuous tracking
+        function startContinuousTracking() {
+            if (watchId) return;
+            
+            watchId = navigator.geolocation.watchPosition(
+                (pos) => {
+                    sendLocationData(pos.coords.latitude, pos.coords.longitude);
+                    updateStatus(`✅ Live: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`, '#4CAF50');
+                },
+                (error) => {
+                    console.log('Watch position error:', error);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 5000
+                }
+            );
+            isTracking = true;
+            updateStatus('🔄 Live tracking active', '#2196F3');
+        }
+
+        // Load markers from server
+        async function loadMarkers() {
+            
+            const query = document.getElementById('search-input').value;
+            try {
+                const url = `/group/{{ group.id }}/locations/?q=${encodeURIComponent(query)}`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                // Remove old markers
+                Object.keys(markers).forEach(id => {
+                    if (!data.locations.some(loc => loc.id == id)) {
+                        map.removeLayer(markers[id]);
+                        delete markers[id];
+                    }
+                });
+
+                // Add/update markers
+                data.locations.forEach((loc, index) => {
+                    const battery = parseInt(loc.battery);
+                    const iconChoice = battery < 30 ? icons.red : 
+                                     battery < 60 ? icons.orange : icons.green;
+
+                    if (markers[loc.id]) {
+                        markers[loc.id].setLatLng([loc.lat, loc.lng]);
+                        markers[loc.id].setIcon(iconChoice);
+                    } else {
+                        markers[loc.id] = L.marker([loc.lat, loc.lng], {icon: iconChoice})
+                            .addTo(map)
+                            .bindPopup(`<b>${loc.name}</b><br>🔋 Battery: ${loc.battery}%<br>📅 ${loc.updated}`);
+                    }
+
+                    // Auto zoom to first result
+                    if (query && index === 0) {
+                        map.setView([loc.lat, loc.lng], 15);
+                        markers[loc.id].openPopup();
+                    }
+                });
+            } catch (error) {
+                console.error('Load markers error:', error);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('request-permission').addEventListener('click', requestLocationPermission);
+        document.getElementById('search-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            loadMarkers();
+        });
+
+        // Auto refresh markers
+        loadMarkers();
+        setInterval(loadMarkers, 10000);
+
+        // Page load - request permission immediately
+        window.addEventListener('load', () => {
+            updateStatus('⏳ Requesting location permission...');
+            setTimeout(requestLocationPermission, 1000);
+        });
+
+        // Handle visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && isTracking) {
+                requestLocationPermission();
+            }
+        });
+    </script>
+    
 </body>
 </html>

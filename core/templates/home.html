@@ -1,19 +1,58 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home Page</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f3f3;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 350px;
+            margin: 80px auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        a {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 12px 0;
+            background: #4CAF50;
+            text-decoration: none;
+            color: white;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        a:hover {
+            background: #45a049;
+        }
+    </style>
+
 </head>
 <body>
-    <h2>Welcome to TrackMyGroup</h2>
-    <a href="/register">Register</a>
-    <br>
-    <a href="/login">Login</a>
-    <br>
-    <a href="/create-notice">Notice</a>
-    <br>
-    <a href="/list">Notice List</a>
+
+    <div class="container">
+        <h2>Welcome to TrackMyGroup</h2>
+
+        <a href="/register">Register</a>
+        <a href="/login">Login</a>
+    </div>
+
 </body>
 </html>
